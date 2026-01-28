@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
+
 /**********
  * Globals
  **********/
 var TAG = "cordova-custom-config";
 var SCRIPT_NAME = "restoreBackups.js";
+var glob
 
 // Pre-existing Cordova npm modules
 var deferral, path, cwd;
@@ -56,6 +58,11 @@ var restoreBackups = (function(){
             backupFileExists = fileUtils.fileExists(backupFilePath);
             if(backupFileExists){
                 targetFilePath = path.join(cwd, 'platforms', platform, parseProjectName(configFiles[backupFile]));
+                if (platform === "ios" && backupFile.indexOf("Info.plist") !== -1) {
+                    targetFilePath = findIOSPlist();
+                } else {
+                    targetFilePath = path.join(cwd, 'platforms', platform, parseProjectName(configFiles[backupFile]));
+                }
                 fileUtils.copySync(backupFilePath, targetFilePath);
                 logFn("Restored backup of '"+backupFileName+"' to :"+targetFilePath);
             }
@@ -71,12 +78,25 @@ var restoreBackups = (function(){
         deferral.resolve();
     }
 
+    function findIOSPlist() {
+    var pattern = path.join(cwd, 'platforms', 'ios', '**', '*-Info.plist');
+    var matches = glob.sync(pattern);
+
+    if (!matches || !matches.length) {
+        throw new Error("No Info.plist found under platforms/ios");
+    }
+
+    logger.verbose("Resolved Info.plist: " + matches[0]);
+    return matches[0];
+}
+
     /*************
      * Public API
      *************/
     restoreBackups.loadDependencies = function(ctx){
         fs = require('fs'),
         _ = require('lodash'),
+        glob = require('glob'),
         fileUtils = require(path.resolve(hooksPath, "fileUtils.js"))(ctx);
         logger.verbose("Loaded module dependencies");
     };
